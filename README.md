@@ -1,8 +1,22 @@
-# Examples of Home Assistant custom config
+# Awesome Lights
 
-Home Assistant can be extended in many different ways. This repository contains a collection of examples how to customize Home Assistant. This repository is organized like your config directory, copying any file to your config directory in the same path as it is in this repo will allow you to use it. Refer to the header of each example for further instructions how to get started.
+This integration shows how you would go ahead and integrate a physical light into Home Assistant.
 
- - **Custom components:** these are components that Home Assistant can load by being referenced from `configuration.yaml` just like built-in components.
- - **Panels:** these are custom panels that can be included in the frontend using [the `panel_custom` component][panel-custom].
+If you use this integration as a template, make sure you tweak the following places:
 
-[panel-custom]: https://home-assistant.io/components/panel_custom/
+ - `manifest.json`: update the requirements to point at your Python library
+ - `light.py`: update the code to interact with your library
+
+### Installation
+
+Copy this folder to `<config_dir>/custom_components/example_light/`.
+
+Add the following entry in your `configuration.yaml`:
+
+```yaml
+light:                                      
+  - platform: ics2000                       
+    mac: MAC_HERE                
+    email: EMAIL_HERE     
+    password: PASSWORD_HERE_OR_secrets.yaml
+```

@@ -1,0 +1,5 @@
+homeassistant==2021.6.6
+voluptuous==0.12.1
+git+https://github.com/rdegraafwhizzkit/ics2000-python@master#egg=ics2000
+pip<20.3
+pipdeptree
