@@ -10,7 +10,7 @@ import voluptuous as vol
 
 # Import the device class from the component that you want to support
 import homeassistant.helpers.config_validation as cv
-from homeassistant.components.light import ATTR_BRIGHTNESS, PLATFORM_SCHEMA, LightEntity
+from homeassistant.components.light import SUPPORT_BRIGHTNESS, PLATFORM_SCHEMA, LightEntity
 from homeassistant.const import CONF_PASSWORD, CONF_MAC, CONF_EMAIL
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -53,6 +53,8 @@ def setup_platform(
 
 class KlikAanKlikUitDevice(LightEntity):
     """Representation of a KlikAanKlikUit device"""
+
+    _attr_supported_features: int = SUPPORT_BRIGHTNESS
 
     def __init__(self, light: Device) -> None:
         """Initialize an AwesomeLight."""

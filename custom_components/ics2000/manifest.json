@@ -1,7 +1,7 @@
 {
   "domain": "ics2000",
   "name": "KlikAanKlikUit ICS2000",
-  "documentation": "https://github.com/home-assistant/example-custom-config/tree/master/custom_components/example_light/",
+  "documentation": "https://github.com/rdegraafwhizzkit/ics2000-hass/tree/master/custom_components/ics2000",
   "dependencies": [],
   "codeowners": ["rdegraafwhizzkit"],
   "requirements": [],
