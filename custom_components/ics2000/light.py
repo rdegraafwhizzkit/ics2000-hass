@@ -1,22 +1,36 @@
 """Platform for light integration."""
 from __future__ import annotations
 
+import math
 import logging
+import time
 from typing import Any
 
 from ics2000.Core import Hub
-from ics2000.Devices import Device
+from ics2000.Devices import Device, Dimmer
+import threading
+
 import voluptuous as vol
 
 # Import the device class from the component that you want to support
 import homeassistant.helpers.config_validation as cv
-from homeassistant.components.light import SUPPORT_BRIGHTNESS, PLATFORM_SCHEMA, LightEntity
+from homeassistant.components.light import ATTR_BRIGHTNESS, SUPPORT_BRIGHTNESS, PLATFORM_SCHEMA, LightEntity
 from homeassistant.const import CONF_PASSWORD, CONF_MAC, CONF_EMAIL
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def repeat(tries: int, sleep: int, callable_function, **kwargs):
+    _LOGGER.info(f'Function repeat called in thread {threading.current_thread().name}')
+    qualname = getattr(callable_function, '__qualname__')
+    for i in range(0, tries):
+        _LOGGER.info(f'Try {i + 1} of {tries} on {qualname}')
+        callable_function(**kwargs)
+        time.sleep(sleep if i != tries - 1 else 0)
+
 
 # Validation of the user's configuration
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
@@ -39,7 +53,7 @@ def setup_platform(
     hub = Hub(
         config[CONF_MAC],
         config[CONF_EMAIL],
-        config.get(CONF_PASSWORD)
+        config[CONF_PASSWORD]
     )
 
     # Verify that passed in configuration works
@@ -48,22 +62,29 @@ def setup_platform(
         return
 
     # Add devices
-    add_entities(KlikAanKlikUitDevice(device) for device in hub.devices)
+    add_entities(KlikAanKlikUitDevice(
+        device=device,
+        tries=int(config.get('tries', 3)),
+        sleep=int(config.get('sleep', 3))
+    ) for device in hub.devices)
 
 
 class KlikAanKlikUitDevice(LightEntity):
     """Representation of a KlikAanKlikUit device"""
 
-    _attr_supported_features: int = SUPPORT_BRIGHTNESS
-
-    def __init__(self, light: Device) -> None:
-        """Initialize an AwesomeLight."""
-        # self._light = light
-        self._name = light.name
-        self._id = light.id
-        self._hub = light.hub
+    def __init__(self, device: Device, tries: int, sleep: int) -> None:
+        """Initialize a KlikAanKlikUitDevice"""
+        self.tries = tries
+        self.sleep = sleep
+        self._name = device.name
+        self._id = device.id
+        self._hub = device.hub
         self._state = None
         self._brightness = None
+        if Dimmer == type(device):
+            self._attr_supported_features = SUPPORT_BRIGHTNESS
+        else:
+            self._attr_supported_features = 0
 
     @property
     def name(self) -> str:
@@ -85,27 +106,55 @@ class KlikAanKlikUitDevice(LightEntity):
         return self._state
 
     def turn_on(self, **kwargs: Any) -> None:
-        """Instruct the light to turn on.
+        _LOGGER.info(f'Function turn_on called in thread {threading.current_thread().name}')
+        if 'kaku_turn_off' in [thread.name for thread in threading.enumerate()]:
+            _LOGGER.info(f'Thread kaku_turn_off still running')
+            return
 
-        You can skip the brightness part if your light does not support
-        brightness control.
-        """
-        # self._light.brightness = kwargs.get(ATTR_BRIGHTNESS, 255)
-        # self._light.turn_on()
-        self._hub.turn_on(self._id)
+        self._brightness = kwargs.get(ATTR_BRIGHTNESS, 255)
+        if self.is_on is None or not self.is_on:
+            threading.Thread(
+                name='kaku_turn_on',
+                target=repeat,
+                kwargs={
+                    'tries': self.tries,
+                    'sleep': self.sleep,
+                    'callable_function': self._hub.turn_on,
+                    'entity': self._id
+                }
+            ).start()
+        else:
+            # KAKU brightness goes from 1 - 15
+            threading.Thread(
+                name='kaku_dim',
+                target=repeat,
+                kwargs={
+                    'tries': self.tries,
+                    'sleep': self.sleep,
+                    'callable_function': self._hub.dim,
+                    'entity': self._id,
+                    'level': math.ceil(self.brightness / 17)
+                }
+            ).start()
         self._state = True
 
     def turn_off(self, **kwargs: Any) -> None:
-        """Instruct the light to turn off."""
-        self._hub.turn_off(self._id)
+        _LOGGER.info(f'Function turn_off called in thread {threading.current_thread().name}')
+        if 'kaku_turn_on' in [thread.name for thread in threading.enumerate()]:
+            _LOGGER.info(f'Thread kaku_turn_on still running')
+            return
+
+        threading.Thread(
+            name='kaku_turn_off',
+            target=repeat,
+            kwargs={
+                'tries': self.tries,
+                'sleep': self.sleep,
+                'callable_function': self._hub.turn_off,
+                'entity': self._id
+            }
+        ).start()
         self._state = False
 
     def update(self) -> None:
-        """Fetch new state data for this light.
-
-        This is the only method that should fetch new data for Home Assistant.
-        """
         pass
-        # self._light.update()
-        # self._state = self._light.is_on()
-        # self._brightness = self._light.brightness
