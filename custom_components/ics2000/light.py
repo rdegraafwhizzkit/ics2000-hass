@@ -72,6 +72,11 @@ def setup_platform(
 class KlikAanKlikUitDevice(LightEntity):
     """Representation of a KlikAanKlikUit device"""
 
+    class KakuThreadNames:
+        turn_on = 'kaku_turn_on'
+        turn_off = 'kaku_turn_off'
+        dim = 'kaku_dim'
+
     def __init__(self, device: Device, tries: int, sleep: int) -> None:
         """Initialize a KlikAanKlikUitDevice"""
         self.tries = tries
@@ -105,16 +110,27 @@ class KlikAanKlikUitDevice(LightEntity):
         """Return true if light is on."""
         return self._state
 
+    @staticmethod
+    def has_running_threads() -> bool:
+        running_threads = [thread.name for thread in threading.enumerate() if thread.name in [
+            KlikAanKlikUitDevice.KakuThreadNames.turn_on,
+            KlikAanKlikUitDevice.KakuThreadNames.dim,
+            KlikAanKlikUitDevice.KakuThreadNames.turn_off
+        ]]
+        if running_threads:
+            _LOGGER.info(f'Running kaku threads: {",".join(running_threads)}')
+            return True
+        return False
+
     def turn_on(self, **kwargs: Any) -> None:
         _LOGGER.info(f'Function turn_on called in thread {threading.current_thread().name}')
-        if 'kaku_turn_off' in [thread.name for thread in threading.enumerate()]:
-            _LOGGER.info(f'Thread kaku_turn_off still running')
+        if KlikAanKlikUitDevice.has_running_threads():
             return
 
         self._brightness = kwargs.get(ATTR_BRIGHTNESS, 255)
         if self.is_on is None or not self.is_on:
             threading.Thread(
-                name='kaku_turn_on',
+                name=KlikAanKlikUitDevice.KakuThreadNames.turn_on,
                 target=repeat,
                 kwargs={
                     'tries': self.tries,
@@ -124,9 +140,9 @@ class KlikAanKlikUitDevice(LightEntity):
                 }
             ).start()
         else:
-            # KAKU brightness goes from 1 - 15
+            # KAKU brightness goes from 1 - 15 so divide by 17
             threading.Thread(
-                name='kaku_dim',
+                name=KlikAanKlikUitDevice.KakuThreadNames.dim,
                 target=repeat,
                 kwargs={
                     'tries': self.tries,
@@ -140,12 +156,11 @@ class KlikAanKlikUitDevice(LightEntity):
 
     def turn_off(self, **kwargs: Any) -> None:
         _LOGGER.info(f'Function turn_off called in thread {threading.current_thread().name}')
-        if 'kaku_turn_on' in [thread.name for thread in threading.enumerate()]:
-            _LOGGER.info(f'Thread kaku_turn_on still running')
+        if KlikAanKlikUitDevice.has_running_threads():
             return
 
         threading.Thread(
-            name='kaku_turn_off',
+            name=KlikAanKlikUitDevice.KakuThreadNames.turn_off,
             target=repeat,
             kwargs={
                 'tries': self.tries,
