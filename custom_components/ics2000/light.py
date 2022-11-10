@@ -72,7 +72,7 @@ def setup_platform(
 class KlikAanKlikUitDevice(LightEntity):
     """Representation of a KlikAanKlikUit device"""
 
-    class KakuThreadNames:
+    class KlikAanKlikUitThreadNames:
         turn_on = 'kaku_turn_on'
         turn_off = 'kaku_turn_off'
         dim = 'kaku_dim'
@@ -113,12 +113,12 @@ class KlikAanKlikUitDevice(LightEntity):
     @staticmethod
     def has_running_threads() -> bool:
         running_threads = [thread.name for thread in threading.enumerate() if thread.name in [
-            KlikAanKlikUitDevice.KakuThreadNames.turn_on,
-            KlikAanKlikUitDevice.KakuThreadNames.dim,
-            KlikAanKlikUitDevice.KakuThreadNames.turn_off
+            KlikAanKlikUitDevice.KlikAanKlikUitThreadNames.turn_on,
+            KlikAanKlikUitDevice.KlikAanKlikUitThreadNames.dim,
+            KlikAanKlikUitDevice.KlikAanKlikUitThreadNames.turn_off
         ]]
         if running_threads:
-            _LOGGER.info(f'Running kaku threads: {",".join(running_threads)}')
+            _LOGGER.info(f'Running KlikAanKlikUit threads: {",".join(running_threads)}')
             return True
         return False
 
@@ -130,7 +130,7 @@ class KlikAanKlikUitDevice(LightEntity):
         self._brightness = kwargs.get(ATTR_BRIGHTNESS, 255)
         if self.is_on is None or not self.is_on:
             threading.Thread(
-                name=KlikAanKlikUitDevice.KakuThreadNames.turn_on,
+                name=KlikAanKlikUitDevice.KlikAanKlikUitThreadNames.turn_on,
                 target=repeat,
                 kwargs={
                     'tries': self.tries,
@@ -140,9 +140,9 @@ class KlikAanKlikUitDevice(LightEntity):
                 }
             ).start()
         else:
-            # KAKU brightness goes from 1 - 15 so divide by 17
+            # KlikAanKlikUit brightness goes from 1 to 15 so divide by 17
             threading.Thread(
-                name=KlikAanKlikUitDevice.KakuThreadNames.dim,
+                name=KlikAanKlikUitDevice.KlikAanKlikUitThreadNames.dim,
                 target=repeat,
                 kwargs={
                     'tries': self.tries,
@@ -160,7 +160,7 @@ class KlikAanKlikUitDevice(LightEntity):
             return
 
         threading.Thread(
-            name=KlikAanKlikUitDevice.KakuThreadNames.turn_off,
+            name=KlikAanKlikUitDevice.KlikAanKlikUitThreadNames.turn_off,
             target=repeat,
             kwargs={
                 'tries': self.tries,
