@@ -37,6 +37,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_MAC): cv.string,
     vol.Required(CONF_EMAIL): cv.string,
     vol.Required(CONF_PASSWORD): cv.string,
+    vol.Optional('tries'): cv.positive_int,
+    vol.Optional('sleep'): cv.positive_int
 })
 
 
