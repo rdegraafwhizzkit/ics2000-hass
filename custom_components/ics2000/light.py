@@ -4,13 +4,13 @@ from __future__ import annotations
 import math
 import logging
 import time
-from typing import Any
+import threading
+import voluptuous as vol
 
+from typing import Any
 from ics2000.Core import Hub
 from ics2000.Devices import Device, Dimmer
-import threading
-
-import voluptuous as vol
+from enum import Enum
 
 # Import the device class from the component that you want to support
 import homeassistant.helpers.config_validation as cv
@@ -69,13 +69,37 @@ def setup_platform(
     ) for device in hub.devices)
 
 
+class KlikAanKlikUitAction(Enum):
+    TURN_ON = 'on'
+    TURN_OFF = 'off'
+    DIM = 'dim'
+
+
+class KlikAanKlikUitThread(threading.Thread):
+
+    def __init__(self, action: KlikAanKlikUitAction, device_id, target, kwargs):
+        super().__init__(
+            # Thread name may be 15 characters max
+            name=f'kaku{action.value}{device_id}',
+            target=target,
+            kwargs=kwargs
+        )
+
+    @staticmethod
+    def has_running_threads(device_id) -> bool:
+        running_threads = [thread.name for thread in threading.enumerate() if thread.name in [
+            f'kaku{KlikAanKlikUitAction.TURN_ON.value}{device_id}',
+            f'kaku{KlikAanKlikUitAction.DIM.value}{device_id}',
+            f'kaku{KlikAanKlikUitAction.TURN_OFF.value}{device_id}'
+        ]]
+        if running_threads:
+            _LOGGER.info(f'Running KlikAanKlikUit threads: {",".join(running_threads)}')
+            return True
+        return False
+
+
 class KlikAanKlikUitDevice(LightEntity):
     """Representation of a KlikAanKlikUit device"""
-
-    class KlikAanKlikUitThreadNames:
-        turn_on = 'kaku_turn_on'
-        turn_off = 'kaku_turn_off'
-        dim = 'kaku_dim'
 
     def __init__(self, device: Device, tries: int, sleep: int) -> None:
         """Initialize a KlikAanKlikUitDevice"""
@@ -110,27 +134,16 @@ class KlikAanKlikUitDevice(LightEntity):
         """Return true if light is on."""
         return self._state
 
-    @staticmethod
-    def has_running_threads() -> bool:
-        running_threads = [thread.name for thread in threading.enumerate() if thread.name in [
-            KlikAanKlikUitDevice.KlikAanKlikUitThreadNames.turn_on,
-            KlikAanKlikUitDevice.KlikAanKlikUitThreadNames.dim,
-            KlikAanKlikUitDevice.KlikAanKlikUitThreadNames.turn_off
-        ]]
-        if running_threads:
-            _LOGGER.info(f'Running KlikAanKlikUit threads: {",".join(running_threads)}')
-            return True
-        return False
-
     def turn_on(self, **kwargs: Any) -> None:
         _LOGGER.info(f'Function turn_on called in thread {threading.current_thread().name}')
-        if KlikAanKlikUitDevice.has_running_threads():
+        if KlikAanKlikUitThread.has_running_threads(self._id):
             return
 
         self._brightness = kwargs.get(ATTR_BRIGHTNESS, 255)
         if self.is_on is None or not self.is_on:
-            threading.Thread(
-                name=KlikAanKlikUitDevice.KlikAanKlikUitThreadNames.turn_on,
+            KlikAanKlikUitThread(
+                action=KlikAanKlikUitAction.TURN_ON,
+                device_id=self._id,
                 target=repeat,
                 kwargs={
                     'tries': self.tries,
@@ -141,8 +154,9 @@ class KlikAanKlikUitDevice(LightEntity):
             ).start()
         else:
             # KlikAanKlikUit brightness goes from 1 to 15 so divide by 17
-            threading.Thread(
-                name=KlikAanKlikUitDevice.KlikAanKlikUitThreadNames.dim,
+            KlikAanKlikUitThread(
+                action=KlikAanKlikUitAction.DIM,
+                device_id=self._id,
                 target=repeat,
                 kwargs={
                     'tries': self.tries,
@@ -156,11 +170,12 @@ class KlikAanKlikUitDevice(LightEntity):
 
     def turn_off(self, **kwargs: Any) -> None:
         _LOGGER.info(f'Function turn_off called in thread {threading.current_thread().name}')
-        if KlikAanKlikUitDevice.has_running_threads():
+        if KlikAanKlikUitThread.has_running_threads(self._id):
             return
 
-        threading.Thread(
-            name=KlikAanKlikUitDevice.KlikAanKlikUitThreadNames.turn_off,
+        KlikAanKlikUitThread(
+            action=KlikAanKlikUitAction.TURN_OFF,
+            device_id=self._id,
             target=repeat,
             kwargs={
                 'tries': self.tries,

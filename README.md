@@ -33,7 +33,7 @@ With default settings, the command will be sent 3 times with a 3 seconds sleep i
 leading to a 6 second runtime for the command: click - pause - click - pause - click.
  
 Note that the actual sending of the command is done in a separate 'non-UI thread' and for that reason
-a check is done (for now) that only one device is controlled at a time. This will be improved. 
+a check is done if a device has a thread running at that time. 
 
 Restart Home Assistant and add a 'Light' card to your dashboard using one of the 'light' entities.
 
