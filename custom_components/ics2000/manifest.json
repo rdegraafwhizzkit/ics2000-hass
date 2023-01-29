@@ -2,9 +2,13 @@
   "domain": "ics2000",
   "name": "KlikAanKlikUit ICS2000",
   "documentation": "https://github.com/rdegraafwhizzkit/ics2000-hass/tree/master/custom_components/ics2000",
-  "dependencies": [],
+  "dependencies": [
+
+  ],
   "codeowners": ["rdegraafwhizzkit"],
-  "requirements": [],
+  "requirements": [
+    "git+https://github.com/rdegraafwhizzkit/ics2000-python.git@master#egg=ics2000"
+  ],
   "iot_class": "local_polling",
   "version": "0.0.1"
 }
