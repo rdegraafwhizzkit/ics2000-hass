@@ -7,7 +7,7 @@
   ],
   "codeowners": ["rdegraafwhizzkit"],
   "requirements": [
-    "git+https://github.com/rdegraafwhizzkit/ics2000-python.git@master#egg=ics2000"
+    "ics2000@git+https://github.com/rdegraafwhizzkit/ics2000-python.git"
   ],
   "iot_class": "local_polling",
   "version": "0.0.1"
