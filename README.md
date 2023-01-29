@@ -31,6 +31,11 @@ a check is done if a device has a thread running at that time.
 
 Restart Home Assistant and add a 'Light' card to your dashboard using one of the 'light' entities.
 
+## Troubleshooting
+When you receive an error the first time you'd like to add a 'Light' card, it may be helpful to
+add or test with a 'Button' card for the entity first and then add a 'light' card. It
+seems to trigger integration to be recognized as producing light entities.
+
 ## Notes on testing on macOS
 When installing dependencies on macOS it may be necessary (depending on your setup)
 to add some values to the environment (needs Homebrew):
