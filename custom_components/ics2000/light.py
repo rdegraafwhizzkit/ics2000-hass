@@ -115,9 +115,11 @@ class KlikAanKlikUitDevice(LightEntity):
         self._brightness = None
         if Dimmer == type(device):
             self._attr_color_mode = ColorMode.BRIGHTNESS
+            self._attr_supported_color_modes = {ColorMode.BRIGHTNESS}
         else:
             self._attr_color_mode = ColorMode.ONOFF
-        self._attr_supported_color_modes = None
+            self._attr_supported_color_modes = {ColorMode.ONOFF}
+
 
     @property
     def name(self) -> str:
