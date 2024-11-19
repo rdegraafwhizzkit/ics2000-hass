@@ -4,3 +4,4 @@ git+https://github.com/rdegraafwhizzkit/ics2000-python@master#egg=ics2000
 homeassistant==2024.6.4
 voluptuous==0.13.1
 pip==24.3.1
+flake8
