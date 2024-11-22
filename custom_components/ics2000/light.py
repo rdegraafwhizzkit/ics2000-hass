@@ -15,7 +15,7 @@ from enum import Enum
 # Import the device class from the component that you want to support
 import homeassistant.helpers.config_validation as cv
 from homeassistant.components.light import ATTR_BRIGHTNESS, PLATFORM_SCHEMA, LightEntity, ColorMode
-from homeassistant.const import CONF_PASSWORD, CONF_MAC, CONF_EMAIL
+from homeassistant.const import CONF_PASSWORD, CONF_MAC, CONF_EMAIL,CONF_IP_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
@@ -38,7 +38,9 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_EMAIL): cv.string,
     vol.Required(CONF_PASSWORD): cv.string,
     vol.Optional('tries'): cv.positive_int,
-    vol.Optional('sleep'): cv.positive_int
+    vol.Optional('sleep'): cv.positive_int,
+    vol.Optional(CONF_IP_ADDRESS): cv.matches_regex(r'[1-9][0-9]{0,2}(\.(0|[1-9][0-9]{0,2})){2}\.[1-9][0-9]{0,2}'),
+    vol.Optional('aes'): cv.matches_regex(r'[a-zA-Z0-9]{32}')
 })
 
 
@@ -66,7 +68,7 @@ def setup_platform(
     # Add devices
     add_entities(KlikAanKlikUitDevice(
         device=device,
-        tries=int(config.get('tries', 3)),
+        tries=int(config.get('tries', 1)),
         sleep=int(config.get('sleep', 3))
     ) for device in hub.devices)
 
