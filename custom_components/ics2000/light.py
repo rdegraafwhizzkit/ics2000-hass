@@ -114,6 +114,7 @@ class KlikAanKlikUitDevice(LightEntity):
         self._hub = device.hub
         self._state = None
         self._brightness = None
+        self.unique_id = f'kaku-{device.id}'
         if Dimmer == type(device):
             _LOGGER.info(f'Adding dimmer with name {device.name}')
             self._attr_color_mode = ColorMode.BRIGHTNESS
