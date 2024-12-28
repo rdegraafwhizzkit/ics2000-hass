@@ -2,25 +2,16 @@
 from __future__ import annotations
 
 import concurrent.futures
-import math
 import logging
-import time
-import threading
 import voluptuous as vol
 
-from typing import Any
 from ics2000.Core import Hub
 from ics2000.Devices import Device, TemperatureHumiditySensor
-from .threader import KlikAanKlikUitAction, KlikAanKlikUitThread, single_result
 
 # Import the device class from the component that you want to support
 import homeassistant.helpers.config_validation as cv
-from homeassistant.components.sensor import (
-    PLATFORM_SCHEMA,
-    SensorEntity,
-    SensorDeviceClass,
-)
-from homeassistant.const import CONF_PASSWORD, CONF_MAC, CONF_EMAIL
+from homeassistant.components.sensor import PLATFORM_SCHEMA,SensorEntity,SensorDeviceClass
+from homeassistant.const import CONF_PASSWORD, CONF_MAC, CONF_EMAIL,CONF_IP_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
@@ -28,28 +19,32 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 _LOGGER = logging.getLogger(__name__)
 
 # Validation of the user's configuration
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
-    {
-        vol.Required(CONF_MAC): cv.string,
-        vol.Required(CONF_EMAIL): cv.string,
-        vol.Required(CONF_PASSWORD): cv.string,
-        vol.Optional("tries"): cv.positive_int,
-        vol.Optional("sleep"): cv.positive_int,
-    }
-)
+PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
+    vol.Required(CONF_MAC): cv.string,
+    vol.Required(CONF_EMAIL): cv.string,
+    vol.Required(CONF_PASSWORD): cv.string,
+    vol.Optional('tries'): cv.positive_int,
+    vol.Optional('sleep'): cv.positive_int,
+    vol.Optional(CONF_IP_ADDRESS): cv.matches_regex(r'[1-9][0-9]{0,2}(\.(0|[1-9][0-9]{0,2})){2}\.[1-9][0-9]{0,2}'),
+    vol.Optional('aes'): cv.matches_regex(r'[a-zA-Z0-9]{32}')
+})
 
 
 def setup_platform(
-    hass: HomeAssistant,
-    config: ConfigType,
-    add_entities: AddEntitiesCallback,
-    discovery_info: DiscoveryInfoType | None = None,
+        hass: HomeAssistant,
+        config: ConfigType,
+        add_entities: AddEntitiesCallback,
+        discovery_info: DiscoveryInfoType | None = None
 ) -> None:
     """Set up the ICS2000 Light platform."""
     # Assign configuration variables.
     # The configuration check takes care they are present.
     # Setup connection with devices/cloud
-    hub = Hub(config[CONF_MAC], config[CONF_EMAIL], config[CONF_PASSWORD])
+    hub = Hub(
+        config[CONF_MAC],
+        config[CONF_EMAIL],
+        config[CONF_PASSWORD]
+    )
 
     # Verify that passed in configuration works
     if not hub.connected:
@@ -80,6 +75,7 @@ class KlikAanKlikUitDevice(SensorEntity):
         self._hub = device.hub
         self._state = None
         self._attr_device_class = sensorType
+        _LOGGER.info(f'Adding device with name {device.name} and type {sensorType}')
 
     @property
     def name(self) -> str:
