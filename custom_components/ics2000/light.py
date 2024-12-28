@@ -9,8 +9,8 @@ import voluptuous as vol
 
 from typing import Any
 from ics2000.Core import Hub
-from ics2000.Devices import Device, Dimmer
-from enum import Enum
+from ics2000.Devices import Device, Light, Dimmer
+from .threader import KlikAanKlikUitThread, repeat
 
 # Import the device class from the component that you want to support
 import homeassistant.helpers.config_validation as cv
@@ -21,16 +21,6 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def repeat(tries: int, sleep: int, callable_function, **kwargs):
-    _LOGGER.info(f'Function repeat called in thread {threading.current_thread().name}')
-    qualname = getattr(callable_function, '__qualname__')
-    for i in range(0, tries):
-        _LOGGER.info(f'Try {i + 1} of {tries} on {qualname}')
-        callable_function(**kwargs)
-        time.sleep(sleep if i != tries - 1 else 0)
-
 
 # Validation of the user's configuration
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
@@ -70,36 +60,7 @@ def setup_platform(
         device=device,
         tries=int(config.get('tries', 1)),
         sleep=int(config.get('sleep', 3))
-    ) for device in hub.devices)
-
-
-class KlikAanKlikUitAction(Enum):
-    TURN_ON = 'on'
-    TURN_OFF = 'off'
-    DIM = 'dim'
-
-
-class KlikAanKlikUitThread(threading.Thread):
-
-    def __init__(self, action: KlikAanKlikUitAction, device_id, target, kwargs):
-        super().__init__(
-            # Thread name may be 15 characters max
-            name=f'kaku{action.value}{device_id}',
-            target=target,
-            kwargs=kwargs
-        )
-
-    @staticmethod
-    def has_running_threads(device_id) -> bool:
-        running_threads = [thread.name for thread in threading.enumerate() if thread.name in [
-            f'kaku{KlikAanKlikUitAction.TURN_ON.value}{device_id}',
-            f'kaku{KlikAanKlikUitAction.DIM.value}{device_id}',
-            f'kaku{KlikAanKlikUitAction.TURN_OFF.value}{device_id}'
-        ]]
-        if running_threads:
-            _LOGGER.info(f'Running KlikAanKlikUit threads: {",".join(running_threads)}')
-            return True
-        return False
+    ) for device in hub.devices if type(device) == Light or type(device) == Dimmer)
 
 
 class KlikAanKlikUitDevice(LightEntity):
