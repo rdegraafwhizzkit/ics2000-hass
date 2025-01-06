@@ -3,19 +3,19 @@ from __future__ import annotations
 
 import math
 import logging
-import time
 import threading
 import voluptuous as vol
 
 from typing import Any
 from ics2000.Core import Hub
 from ics2000.Devices import Device, Light, Dimmer
-from .threader import KlikAanKlikUitThread, repeat
+from .device import KlikAanKlikUitDevice
+from .threader import KlikAanKlikUitAction, KlikAanKlikUitThread, repeat
 
 # Import the device class from the component that you want to support
 import homeassistant.helpers.config_validation as cv
 from homeassistant.components.light import ATTR_BRIGHTNESS, PLATFORM_SCHEMA, LightEntity, ColorMode
-from homeassistant.const import CONF_PASSWORD, CONF_MAC, CONF_EMAIL,CONF_IP_ADDRESS
+from homeassistant.const import CONF_PASSWORD, CONF_MAC, CONF_EMAIL, CONF_IP_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
@@ -56,24 +56,19 @@ def setup_platform(
         return
 
     # Add devices
-    add_entities(KlikAanKlikUitDevice(
+    add_entities(KlikAanKlikUitLightDevice(
         device=device,
         tries=int(config.get('tries', 1)),
         sleep=int(config.get('sleep', 3))
     ) for device in hub.devices if type(device) == Light or type(device) == Dimmer)
 
 
-class KlikAanKlikUitDevice(LightEntity):
-    """Representation of a KlikAanKlikUit device"""
+class KlikAanKlikUitLightDevice(KlikAanKlikUitDevice, LightEntity):
+    """Representation of a KlikAanKlikUit light device"""
 
     def __init__(self, device: Device, tries: int, sleep: int) -> None:
         """Initialize a KlikAanKlikUitDevice"""
-        self.tries = tries
-        self.sleep = sleep
-        self._name = device.name
-        self._id = device.id
-        self._hub = device.hub
-        self._state = None
+        KlikAanKlikUitDevice.__init__(self, device, tries, sleep)
         self._brightness = None
         if Dimmer == type(device):
             _LOGGER.info(f'Adding dimmer with name {device.name}')
@@ -83,11 +78,6 @@ class KlikAanKlikUitDevice(LightEntity):
             _LOGGER.info(f'Adding device with name {device.name}')
             self._attr_color_mode = ColorMode.ONOFF
             self._attr_supported_color_modes = {ColorMode.ONOFF}
-
-    @property
-    def name(self) -> str:
-        """Return the display name of this light."""
-        return self._name
 
     @property
     def brightness(self):
