@@ -17,7 +17,7 @@ class KlikAanKlikUitDevice(Entity):
         self.sleep = sleep
         self._name = device.name
         self._id = device.id
-        self._attr_unique_id = device.id
+        self.unique_id = f'kaku-{device.id}'
         self._hub = device.hub
         self._state = None
         _LOGGER.info('Adding device (%s) with name %s', device.__class__.__name__, device.name)
