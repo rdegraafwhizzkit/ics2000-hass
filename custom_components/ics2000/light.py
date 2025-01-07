@@ -70,6 +70,7 @@ class KlikAanKlikUitLightDevice(KlikAanKlikUitDevice, LightEntity):
         """Initialize a KlikAanKlikUitDevice"""
         KlikAanKlikUitDevice.__init__(self, device, tries, sleep)
         self._brightness = None
+        self.unique_id = f'kaku-{device.id}'
         if Dimmer == type(device):
             _LOGGER.info(f'Adding dimmer with name {device.name}')
             self._attr_color_mode = ColorMode.BRIGHTNESS
