@@ -40,7 +40,9 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional('tries'): cv.positive_int,
     vol.Optional('sleep'): cv.positive_int,
     vol.Optional(CONF_IP_ADDRESS): cv.matches_regex(r'[1-9][0-9]{0,2}(\.(0|[1-9][0-9]{0,2})){2}\.[1-9][0-9]{0,2}'),
-    vol.Optional('aes'): cv.matches_regex(r'[a-zA-Z0-9]{32}')
+    vol.Optional('aes'): cv.matches_regex(r'[a-zA-Z0-9]{32}'),
+    # Nieuwe optie voor zonnescherm devices
+    vol.Optional('awning_devices'): vol.All(cv.ensure_list, [cv.string])  # Device IDs die zonneschermen zijn
 })
 
 
@@ -52,7 +54,6 @@ def setup_platform(
 ) -> None:
     """Set up the ICS2000 Light platform."""
     # Assign configuration variables.
-    # The configuration check takes care they are present.
     # Setup connection with devices/cloud
     hub = Hub(
         config[CONF_MAC],
@@ -65,12 +66,40 @@ def setup_platform(
         _LOGGER.error("Could not connect to ICS2000 hub")
         return
 
-    # Add devices
-    add_entities(KlikAanKlikUitDevice(
-        device=device,
-        tries=int(config.get('tries', 1)),
-        sleep=int(config.get('sleep', 3))
-    ) for device in hub.devices)
+    # Debug: Print alle devices met hun IDs
+    _LOGGER.info("=== ICS2000 DEVICES FOUND ===")
+    for device in hub.devices:
+        _LOGGER.info(f"Device ID: {device.id}, Name: {device.name}, Type: {type(device).__name__}")
+    _LOGGER.info("=== END DEVICE LIST ===")
+
+    entities = []
+    awning_device_ids = config.get('awning_devices', [])
+    
+    for device in hub.devices:
+        if str(device.id) in awning_device_ids:
+            # Voeg zonnescherm toe als twee aparte lights
+            _LOGGER.info(f"Adding awning device {device.name} as two separate lights")
+            entities.append(KlikAanKlikUitDevice(
+                device=device,
+                tries=int(config.get('tries', 1)),
+                sleep=int(config.get('sleep', 3)),
+                awning_direction='up'
+            ))
+            entities.append(KlikAanKlikUitDevice(
+                device=device,
+                tries=int(config.get('tries', 1)),
+                sleep=int(config.get('sleep', 3)),
+                awning_direction='down'
+            ))
+        else:
+            # Normale light
+            entities.append(KlikAanKlikUitDevice(
+                device=device,
+                tries=int(config.get('tries', 1)),
+                sleep=int(config.get('sleep', 3))
+            ))
+
+    add_entities(entities)
 
 
 class KlikAanKlikUitAction(Enum):
@@ -105,22 +134,33 @@ class KlikAanKlikUitThread(threading.Thread):
 class KlikAanKlikUitDevice(LightEntity):
     """Representation of a KlikAanKlikUit device"""
 
-    def __init__(self, device: Device, tries: int, sleep: int) -> None:
+    def __init__(self, device: Device, tries: int, sleep: int, awning_direction: str = None) -> None:
         """Initialize a KlikAanKlikUitDevice"""
         self.tries = tries
         self.sleep = sleep
-        self._name = device.name
+        self.awning_direction = awning_direction
+        
+        if awning_direction:
+            # Voor zonneschermen: voeg richting toe aan naam
+            self._name = f"{device.name} {awning_direction.title()}"
+            self.unique_id = f'kaku-{device.id}-{awning_direction}'
+        else:
+            # Normale light
+            self._name = device.name
+            self.unique_id = f'kaku-{device.id}'
+            
         self._id = device.id
         self._hub = device.hub
         self._state = None
         self._brightness = None
-        self.unique_id = f'kaku-{device.id}'
-        if Dimmer == type(device):
-            _LOGGER.info(f'Adding dimmer with name {device.name}')
+        
+        # Bepaal color mode op basis van device type en of het een zonnescherm is
+        if Dimmer == type(device) and not awning_direction:
+            _LOGGER.info(f'Adding dimmer with name {self._name}')
             self._attr_color_mode = ColorMode.BRIGHTNESS
             self._attr_supported_color_modes = {ColorMode.BRIGHTNESS}
         else:
-            _LOGGER.info(f'Adding device with name {device.name}')
+            _LOGGER.info(f'Adding device with name {self._name}')
             self._attr_color_mode = ColorMode.ONOFF
             self._attr_supported_color_modes = {ColorMode.ONOFF}
 
@@ -144,12 +184,14 @@ class KlikAanKlikUitDevice(LightEntity):
         return self._state
 
     def turn_on(self, **kwargs: Any) -> None:
-        _LOGGER.info(f'Function turn_on called in thread {threading.current_thread().name}')
+        _LOGGER.info(f'Function turn_on called for {self._name} in thread {threading.current_thread().name}')
         if KlikAanKlikUitThread.has_running_threads(self._id):
             return
 
-        self._brightness = kwargs.get(ATTR_BRIGHTNESS, 255)
-        if self.is_on is None or not self.is_on:
+        # Voor zonneschermen: bepaal welke actie uitgevoerd moet worden
+        if self.awning_direction == 'up':
+            # Zonnescherm omhoog
+            _LOGGER.info(f'Moving awning {self._name} UP')
             KlikAanKlikUitThread(
                 action=KlikAanKlikUitAction.TURN_ON,
                 device_id=self._id,
@@ -161,24 +203,65 @@ class KlikAanKlikUitDevice(LightEntity):
                     'entity': self._id
                 }
             ).start()
-        else:
-            # KlikAanKlikUit brightness goes from 1 to 15 so divide by 17
+            self._state = True
+            
+        elif self.awning_direction == 'down':
+            # Zonnescherm omlaag
+            _LOGGER.info(f'Moving awning {self._name} DOWN')
             KlikAanKlikUitThread(
-                action=KlikAanKlikUitAction.DIM,
+                action=KlikAanKlikUitAction.TURN_OFF,
                 device_id=self._id,
                 target=repeat,
                 kwargs={
                     'tries': self.tries,
                     'sleep': self.sleep,
-                    'callable_function': self._hub.dim,
-                    'entity': self._id,
-                    'level': math.ceil(self.brightness / 17)
+                    'callable_function': self._hub.turn_off,
+                    'entity': self._id
                 }
             ).start()
-        self._state = True
+            self._state = True
+            
+        else:
+            # Normale light logica
+            self._brightness = kwargs.get(ATTR_BRIGHTNESS, 255)
+            if self.is_on is None or not self.is_on:
+                KlikAanKlikUitThread(
+                    action=KlikAanKlikUitAction.TURN_ON,
+                    device_id=self._id,
+                    target=repeat,
+                    kwargs={
+                        'tries': self.tries,
+                        'sleep': self.sleep,
+                        'callable_function': self._hub.turn_on,
+                        'entity': self._id
+                    }
+                ).start()
+            else:
+                # KlikAanKlikUit brightness goes from 1 to 15 so divide by 17
+                KlikAanKlikUitThread(
+                    action=KlikAanKlikUitAction.DIM,
+                    device_id=self._id,
+                    target=repeat,
+                    kwargs={
+                        'tries': self.tries,
+                        'sleep': self.sleep,
+                        'callable_function': self._hub.dim,
+                        'entity': self._id,
+                        'level': math.ceil(self.brightness / 17)
+                    }
+                ).start()
+            self._state = True
 
     def turn_off(self, **kwargs: Any) -> None:
-        _LOGGER.info(f'Function turn_off called in thread {threading.current_thread().name}')
+        _LOGGER.info(f'Function turn_off called for {self._name} in thread {threading.current_thread().name}')
+        
+        # Voor zonnescherm devices, turn_off betekent "stop beweging"
+        if self.awning_direction:
+            _LOGGER.info(f'Stopping awning {self._name}')
+            self._state = False
+            return
+            
+        # Normale light logica
         if KlikAanKlikUitThread.has_running_threads(self._id):
             return
 
