@@ -15,7 +15,7 @@ from enum import Enum
 # Import the device class from the component that you want to support
 import homeassistant.helpers.config_validation as cv
 from homeassistant.components.light import ATTR_BRIGHTNESS, PLATFORM_SCHEMA, LightEntity, ColorMode
-from homeassistant.const import CONF_PASSWORD, CONF_MAC, CONF_EMAIL,CONF_IP_ADDRESS
+from homeassistant.const import CONF_PASSWORD, CONF_MAC, CONF_EMAIL  # ,CONF_IP_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
@@ -39,8 +39,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_PASSWORD): cv.string,
     vol.Optional('tries'): cv.positive_int,
     vol.Optional('sleep'): cv.positive_int,
-    vol.Optional(CONF_IP_ADDRESS): cv.matches_regex(r'[1-9][0-9]{0,2}(\.(0|[1-9][0-9]{0,2})){2}\.[1-9][0-9]{0,2}'),
-    vol.Optional('aes'): cv.matches_regex(r'[a-zA-Z0-9]{32}')
+    # vol.Optional(CONF_IP_ADDRESS): cv.matches_regex(r'[1-9][0-9]{0,2}(\.(0|[1-9][0-9]{0,2})){2}\.[1-9][0-9]{0,2}'),
+    # vol.Optional('aes'): cv.matches_regex(r'[a-zA-Z0-9]{32}')
 })
 
 
@@ -65,7 +65,7 @@ def setup_platform(
         _LOGGER.error("Could not connect to ICS2000 hub")
         return
 
-    # Add devices
+    # Add entities
     add_entities(KlikAanKlikUitDevice(
         device=device,
         tries=int(config.get('tries', 1)),
@@ -141,7 +141,7 @@ class KlikAanKlikUitDevice(LightEntity):
     @property
     def is_on(self) -> bool | None:
         """Return true if light is on."""
-        return self._state
+        return self._state or False
 
     def turn_on(self, **kwargs: Any) -> None:
         _LOGGER.info(f'Function turn_on called in thread {threading.current_thread().name}')
@@ -149,7 +149,7 @@ class KlikAanKlikUitDevice(LightEntity):
             return
 
         self._brightness = kwargs.get(ATTR_BRIGHTNESS, 255)
-        if self.is_on is None or not self.is_on:
+        if not self.is_on:
             KlikAanKlikUitThread(
                 action=KlikAanKlikUitAction.TURN_ON,
                 device_id=self._id,
