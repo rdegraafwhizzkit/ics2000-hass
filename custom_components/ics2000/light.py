@@ -15,7 +15,7 @@ from enum import Enum
 # Import the device class from the component that you want to support
 import homeassistant.helpers.config_validation as cv
 from homeassistant.components.light import ATTR_BRIGHTNESS, PLATFORM_SCHEMA, LightEntity, ColorMode
-from homeassistant.const import CONF_PASSWORD, CONF_MAC, CONF_EMAIL  # ,CONF_IP_ADDRESS
+from homeassistant.const import CONF_PASSWORD, CONF_MAC, CONF_EMAIL, STATE_ON, STATE_OFF
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
@@ -38,9 +38,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_EMAIL): cv.string,
     vol.Required(CONF_PASSWORD): cv.string,
     vol.Optional('tries'): cv.positive_int,
-    vol.Optional('sleep'): cv.positive_int,
-    # vol.Optional(CONF_IP_ADDRESS): cv.matches_regex(r'[1-9][0-9]{0,2}(\.(0|[1-9][0-9]{0,2})){2}\.[1-9][0-9]{0,2}'),
-    # vol.Optional('aes'): cv.matches_regex(r'[a-zA-Z0-9]{32}')
+    vol.Optional('sleep'): cv.positive_int
 })
 
 
@@ -131,25 +129,18 @@ class KlikAanKlikUitDevice(LightEntity):
 
     @property
     def brightness(self):
-        """Return the brightness of the light.
-
-        This method is optional. Removing it indicates to Home Assistant
-        that brightness is not supported for this light.
-        """
-        return self._brightness
+        return self._brightness or 1
 
     @property
-    def is_on(self) -> bool | None:
-        """Return true if light is on."""
-        return self._state or False
+    def is_on(self) -> str | None:
+        return self._state or STATE_OFF
 
     def turn_on(self, **kwargs: Any) -> None:
         _LOGGER.info(f'Function turn_on called in thread {threading.current_thread().name}')
         if KlikAanKlikUitThread.has_running_threads(self._id):
             return
 
-        self._brightness = kwargs.get(ATTR_BRIGHTNESS, 255)
-        if not self.is_on:
+        if not ATTR_BRIGHTNESS in kwargs:
             KlikAanKlikUitThread(
                 action=KlikAanKlikUitAction.TURN_ON,
                 device_id=self._id,
@@ -163,6 +154,7 @@ class KlikAanKlikUitDevice(LightEntity):
             ).start()
         else:
             # KlikAanKlikUit brightness goes from 1 to 15 so divide by 17
+            self._brightness = kwargs.get(ATTR_BRIGHTNESS)
             KlikAanKlikUitThread(
                 action=KlikAanKlikUitAction.DIM,
                 device_id=self._id,
@@ -175,7 +167,7 @@ class KlikAanKlikUitDevice(LightEntity):
                     'level': math.ceil(self.brightness / 17)
                 }
             ).start()
-        self._state = True
+        self._state = STATE_ON
 
     def turn_off(self, **kwargs: Any) -> None:
         _LOGGER.info(f'Function turn_off called in thread {threading.current_thread().name}')
@@ -193,7 +185,7 @@ class KlikAanKlikUitDevice(LightEntity):
                 'entity': self._id
             }
         ).start()
-        self._state = False
+        self._state = STATE_OFF
 
     def update(self) -> None:
         pass
