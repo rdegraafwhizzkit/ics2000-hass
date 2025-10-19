@@ -16,8 +16,6 @@ light:
     password: PASSWORD_HERE_OR_secrets.yaml
     tries: 3                              # Optional, defaults to 1
     sleep: 2                              # Optional, defaults to 3
-    aes: 185dd26964b583ca097231a7ea3ba407 # Optional
-    ip_address: 192.168.1.205             # Optional
 ```
 * Restart Home Assistant
 
