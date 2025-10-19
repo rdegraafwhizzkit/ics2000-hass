@@ -45,10 +45,10 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
 
 
 def setup_platform(
-        hass: HomeAssistant,
+        hass: HomeAssistant,  # noqa
         config: ConfigType,
         add_entities: AddEntitiesCallback,
-        discovery_info: DiscoveryInfoType | None = None
+        discovery_info: DiscoveryInfoType | None = None  # noqa
 ) -> None:
     """Set up the ICS2000 Light platform."""
     # Assign configuration variables.
