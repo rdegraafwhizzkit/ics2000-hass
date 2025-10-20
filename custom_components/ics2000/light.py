@@ -8,14 +8,14 @@ import threading
 import voluptuous as vol
 
 from typing import Any
-from ics2000.Core import Hub
-from ics2000.Devices import Device, Dimmer
+from ics2000_python.Core import Hub
+from ics2000_python.Devices import Device, Dimmer
 from enum import Enum
 
 # Import the device class from the component that you want to support
 import homeassistant.helpers.config_validation as cv
 from homeassistant.components.light import ATTR_BRIGHTNESS, PLATFORM_SCHEMA, LightEntity, ColorMode
-from homeassistant.const import CONF_PASSWORD, CONF_MAC, CONF_EMAIL,CONF_IP_ADDRESS
+from homeassistant.const import CONF_PASSWORD, CONF_MAC, CONF_EMAIL
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
@@ -38,17 +38,15 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_EMAIL): cv.string,
     vol.Required(CONF_PASSWORD): cv.string,
     vol.Optional('tries'): cv.positive_int,
-    vol.Optional('sleep'): cv.positive_int,
-    vol.Optional(CONF_IP_ADDRESS): cv.matches_regex(r'[1-9][0-9]{0,2}(\.(0|[1-9][0-9]{0,2})){2}\.[1-9][0-9]{0,2}'),
-    vol.Optional('aes'): cv.matches_regex(r'[a-zA-Z0-9]{32}')
+    vol.Optional('sleep'): cv.positive_int
 })
 
 
 def setup_platform(
-        hass: HomeAssistant,
+        hass: HomeAssistant,  # noqa
         config: ConfigType,
         add_entities: AddEntitiesCallback,
-        discovery_info: DiscoveryInfoType | None = None
+        discovery_info: DiscoveryInfoType | None = None  # noqa
 ) -> None:
     """Set up the ICS2000 Light platform."""
     # Assign configuration variables.
@@ -65,7 +63,7 @@ def setup_platform(
         _LOGGER.error("Could not connect to ICS2000 hub")
         return
 
-    # Add devices
+    # Add entities
     add_entities(KlikAanKlikUitDevice(
         device=device,
         tries=int(config.get('tries', 1)),
@@ -112,8 +110,8 @@ class KlikAanKlikUitDevice(LightEntity):
         self._name = device.name
         self._id = device.id
         self._hub = device.hub
-        self._state = None
-        self._brightness = None
+        self._state = False
+        self._brightness = 1
         self.unique_id = f'kaku-{device.id}'
         if Dimmer == type(device):
             _LOGGER.info(f'Adding dimmer with name {device.name}')
@@ -131,16 +129,10 @@ class KlikAanKlikUitDevice(LightEntity):
 
     @property
     def brightness(self):
-        """Return the brightness of the light.
-
-        This method is optional. Removing it indicates to Home Assistant
-        that brightness is not supported for this light.
-        """
         return self._brightness
 
     @property
     def is_on(self) -> bool | None:
-        """Return true if light is on."""
         return self._state
 
     def turn_on(self, **kwargs: Any) -> None:
@@ -148,8 +140,7 @@ class KlikAanKlikUitDevice(LightEntity):
         if KlikAanKlikUitThread.has_running_threads(self._id):
             return
 
-        self._brightness = kwargs.get(ATTR_BRIGHTNESS, 255)
-        if self.is_on is None or not self.is_on:
+        if not ATTR_BRIGHTNESS in kwargs:
             KlikAanKlikUitThread(
                 action=KlikAanKlikUitAction.TURN_ON,
                 device_id=self._id,
@@ -163,6 +154,7 @@ class KlikAanKlikUitDevice(LightEntity):
             ).start()
         else:
             # KlikAanKlikUit brightness goes from 1 to 15 so divide by 17
+            self._brightness = kwargs.get(ATTR_BRIGHTNESS)
             KlikAanKlikUitThread(
                 action=KlikAanKlikUitAction.DIM,
                 device_id=self._id,
@@ -175,6 +167,7 @@ class KlikAanKlikUitDevice(LightEntity):
                     'level': math.ceil(self.brightness / 17)
                 }
             ).start()
+
         self._state = True
 
     def turn_off(self, **kwargs: Any) -> None:
@@ -193,6 +186,7 @@ class KlikAanKlikUitDevice(LightEntity):
                 'entity': self._id
             }
         ).start()
+
         self._state = False
 
     def update(self) -> None:
