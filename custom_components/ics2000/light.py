@@ -15,7 +15,7 @@ from enum import Enum
 # Import the device class from the component that you want to support
 import homeassistant.helpers.config_validation as cv
 from homeassistant.components.light import ATTR_BRIGHTNESS, PLATFORM_SCHEMA, LightEntity, ColorMode
-from homeassistant.const import CONF_PASSWORD, CONF_MAC, CONF_EMAIL, STATE_ON, STATE_OFF
+from homeassistant.const import CONF_PASSWORD, CONF_MAC, CONF_EMAIL
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
@@ -110,8 +110,8 @@ class KlikAanKlikUitDevice(LightEntity):
         self._name = device.name
         self._id = device.id
         self._hub = device.hub
-        self._state = None
-        self._brightness = None
+        self._state = False
+        self._brightness = 1
         self.unique_id = f'kaku-{device.id}'
         if Dimmer == type(device):
             _LOGGER.info(f'Adding dimmer with name {device.name}')
@@ -129,11 +129,11 @@ class KlikAanKlikUitDevice(LightEntity):
 
     @property
     def brightness(self):
-        return self._brightness or 1
+        return self._brightness
 
     @property
-    def is_on(self) -> str | None:
-        return self._state or STATE_OFF
+    def is_on(self) -> bool | None:
+        return self._state
 
     def turn_on(self, **kwargs: Any) -> None:
         _LOGGER.info(f'Function turn_on called in thread {threading.current_thread().name}')
@@ -167,7 +167,8 @@ class KlikAanKlikUitDevice(LightEntity):
                     'level': math.ceil(self.brightness / 17)
                 }
             ).start()
-        self._state = STATE_ON
+
+        self._state = True
 
     def turn_off(self, **kwargs: Any) -> None:
         _LOGGER.info(f'Function turn_off called in thread {threading.current_thread().name}')
@@ -185,7 +186,8 @@ class KlikAanKlikUitDevice(LightEntity):
                 'entity': self._id
             }
         ).start()
-        self._state = STATE_OFF
+
+        self._state = False
 
     def update(self) -> None:
         pass
