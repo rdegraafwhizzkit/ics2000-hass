@@ -1,4 +1,4 @@
-git+https://github.com/rdegraafwhizzkit/ics2000-python@master#egg=ics2000
+git+https://github.com/rdegraafwhizzkit/ics2000-python@release-1.0.3#egg=ics2000_python
 homeassistant==2025.10.3
 voluptuous
 flake8
