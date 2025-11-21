@@ -10,7 +10,7 @@
     "ics2000_python@git+https://github.com/rdegraafwhizzkit/ics2000-python.git@v1.0.4"
   ],
   "iot_class": "local_polling",
-  "version": "2025.11-2.0.5-2",
+  "version": "2025.11.0-2.0.5-2",
   "integration_type": "entity",
   "issue_tracker": "https://github.com/rdegraafwhizzkit/ics2000-hass/issues"
 }
